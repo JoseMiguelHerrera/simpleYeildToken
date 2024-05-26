@@ -4,25 +4,25 @@ pragma solidity 0.8.18;
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import {IYeildCalculatorOracle} from "./interfaces/IyeildCalculatorOracle.sol";
+import {IYieldCalculatorOracle} from "./interfaces/IyieldCalculatorOracle.sol";
 
 /*
-       .__               .__                         .__.__       .___   __          __                  
-  _____|__| _____ ______ |  |   ____    ___.__. ____ |__|  |    __| _/ _/  |_  ____ |  | __ ____   ____  
- /  ___/  |/     \\____ \|  | _/ __ \  <   |  |/ __ \|  |  |   / __ |  \   __\/  _ \|  |/ // __ \ /    \ 
- \___ \|  |  Y Y  \  |_> >  |_\  ___/   \___  \  ___/|  |  |__/ /_/ |   |  | (  <_> )    <\  ___/|   |  \
-/____  >__|__|_|  /   __/|____/\___  >  / ____|\___  >__|____/\____ |   |__|  \____/|__|_ \\___  >___|  /
-     \/         \/|__|             \/   \/         \/              \/                    \/    \/     \/ 
-
-* An erc20-based contract that allows for yeild via a simple rebasing mechanism.
-* Contract keeps track of "capital" that has entered the system, but also outputs balances that are yeild-adjusted via the yeildFactor variable.
+  _________.__               .__           _____.___.__       .__       .___ ___________     __                  
+ /   _____/|__| _____ ______ |  |   ____   \__  |   |__| ____ |  |    __| _/ \__    ___/___ |  | __ ____   ____  
+ \_____  \ |  |/     \\____ \|  | _/ __ \   /   |   |  |/ __ \|  |   / __ |    |    | /  _ \|  |/ // __ \ /    \ 
+ /        \|  |  Y Y  \  |_> >  |_\  ___/   \____   |  \  ___/|  |__/ /_/ |    |    |(  <_> )    <\  ___/|   |  \
+/_______  /|__|__|_|  /   __/|____/\___  >  / ______|__|\___  >____/\____ |    |____| \____/|__|_ \\___  >___|  /
+        \/          \/|__|             \/   \/              \/           \/                      \/    \/     \/ 
+        
+* An erc20-based contract that allows for yield via a simple rebasing mechanism.
+* Contract keeps track of "capital" that has entered the system, but also outputs balances that are yield-adjusted via the yieldFactor variable.
 *
-* The yeildFactor varaible needs to be updated either manually, or with an instance of YeildCalculatorOracle. If one desires a regular compounding
-* period, like daily, yeildFactor will need to be updated by an off-chain server. YeildCalculatorOracle updates the yeildFactor on any token transfer,
+* The yieldFactor variable needs to be updated either manually, or with an instance of YieldCalculatorOracle. If one desires a regular compounding
+* period, like daily, yieldFactor will need to be updated by an off-chain server. YieldCalculatorOracle updates the yieldFactor on any token transfer,
 * keeping it tied to a target APY.
 */
 
-contract SimpleYeildToken is
+contract SimpleYieldToken is
     IERC20MetadataUpgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable
@@ -36,33 +36,33 @@ contract SimpleYeildToken is
     // Percentage factor for precision
     uint256 private constant _PERCENTAGE_FACTOR = 1e18;
     /**
-     * @dev yeildFactor for yeild calculation logic.
+     * @dev yieldFactor for yield calculation logic.
      * The value is represented with 18 decimal places for precision.
      */
-    uint256 public yeildFactor;
+    uint256 public yieldFactor;
 
     /**
-     * @dev timestamp of the last update of the yeildFactor. Helps with tracking an APY.
+     * @dev timestamp of the last update of the yieldFactor. Helps with tracking an APY.
     */
-    uint256 public lastYeildFactorUpdate;
+    uint256 public lastYieldFactorUpdate;
     /**
-     * @dev instance of an optional YeildCalculatorOracle for keeping yeildFactor updated automatically. 
+     * @dev instance of an optional YieldCalculatorOracle for keeping yieldFactor updated automatically. 
     */
-    IYeildCalculatorOracle public optionalYeildCalculatorOracle;
+    IYieldCalculatorOracle public optionalYieldCalculatorOracle;
 
     // Mapping of capital per address
     mapping(address => uint256) private _capitalPerUser;
 
     // Mapping of allowances per owner and spender
-    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping(address => mapping(address=> uint256)) private _allowances;
 
     // Access control roles
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-    bytes32 public constant YEILD_SETTER_ROLE = keccak256("YEILD_SETTER_ROLE");
+    bytes32 public constant YIELD_SETTER_ROLE = keccak256("YIELD_SETTER_ROLE");
 
     // Events
-    event YeildFactorSet(uint256 indexed value);
+    event YieldFactorSet(uint256 indexed value);
 
     /**
      * Standard ERC20 Errors
@@ -91,7 +91,7 @@ contract SimpleYeildToken is
         uint256 capital,
         uint256 capitalNeeded
     );
-    error InvalidYeildFactor(uint256);
+    error InvalidYieldFactor(uint256);
 
     /**
      * @notice Initializes the contract.
@@ -274,40 +274,40 @@ contract SimpleYeildToken is
     }
 
     /**
-     * @notice Sets the yeild factor.
+     * @notice Sets the yield factor.
      * @dev This function can only be called by DEFAULT_ADMIN_ROLE.
-     * @param _yeildFactor The new yeild factor.
+     * @param _yieldFactor The new yield factor.
      */
-    function setYeildFactor(
-        uint256 _yeildFactor
+    function setYieldFactor(
+        uint256 _yieldFactor
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setYieldFactor(_yeildFactor);
+        _setYieldFactor(_yieldFactor);
     }
 
     /**
-     * @notice Sets an automatic yeild calculator oracle for automated updates of the yeild factor.
+     * @notice Sets an automatic yield calculator oracle for automated updates of the yield factor.
      * @dev This function can only be called by DEFAULT_ADMIN_ROLE.
-     * @param _yeildCalculatorOracle The yeild calculator oracle.
+     * @param _yieldCalculatorOracle The yield calculator oracle.
      */
-    function setOptionalYeildOracle(
-        IYeildCalculatorOracle _yeildCalculatorOracle
+    function setOptionalYieldOracle(
+        IYieldCalculatorOracle _yieldCalculatorOracle
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        optionalYeildCalculatorOracle = _yeildCalculatorOracle;
+        optionalYieldCalculatorOracle = _yieldCalculatorOracle;
     }
 
     /**
-     * @notice Adds the given amount to the current yeild factor.
-     * @dev This function can only be called by an account with YEILD_SETTER_ROLE.
-     * @param _yeildFactorIncrement The amount to add to the current yeild factor
+     * @notice Adds the given amount to the current yield factor.
+     * @dev This function can only be called by an account with YIELD_SETTER_ROLE.
+     * @param _yieldFactorIncrement The amount to add to the current yield factor
      */
-    function addToYeildFactor(
-        uint256 _yeildFactorIncrement
-    ) external onlyRole(YEILD_SETTER_ROLE) {
-        if (_yeildFactorIncrement == 0) {
-            revert InvalidYeildFactor(_yeildFactorIncrement);
+    function addToYieldFactor(
+        uint256 _yieldFactorIncrement
+    ) external onlyRole(YIELD_SETTER_ROLE) {
+        if (_yieldFactorIncrement == 0) {
+            revert InvalidYieldFactor(_yieldFactorIncrement);
         }
 
-        _setYieldFactor(yeildFactor + _yeildFactorIncrement);
+        _setYieldFactor(yieldFactor + _yieldFactorIncrement);
     }
 
     /**
@@ -328,7 +328,7 @@ contract SimpleYeildToken is
 
     /**
      * @notice Returns the balance of the specified address.
-     * @dev Balances are dynamic and tied the `account`'s capital + yeild
+     * @dev Balances are dynamic and tied the `account`'s capital + yield
      * @param account The address to query the balance of.
      * @return The balance of the specified address.
      */
@@ -367,7 +367,7 @@ contract SimpleYeildToken is
      *
      */
     function convertToCapital(uint256 amount) public view returns (uint256) {
-        return (amount * _PERCENTAGE_FACTOR) / yeildFactor;
+        return (amount * _PERCENTAGE_FACTOR) / yieldFactor;
     }
 
     /**
@@ -376,7 +376,7 @@ contract SimpleYeildToken is
      * @return The equivalent amount of tokens.
      */
     function convertToTokens(uint256 capital) public view returns (uint256) {
-        return (capital * yeildFactor) / _PERCENTAGE_FACTOR;
+        return (capital * yieldFactor) / _PERCENTAGE_FACTOR;
     }
 
     /**
@@ -477,7 +477,7 @@ contract SimpleYeildToken is
     }
 
     /**
-     * @dev Private funciton of a hook that is called after any transfer of tokens. This includes
+     * @dev Private function of a hook that is called after any transfer of tokens. This includes
      * minting and burning.
      */
     function _afterTokenTransfer(
@@ -528,18 +528,18 @@ contract SimpleYeildToken is
     }
 
     /**
-     * @dev Private function to set the yeild factor.
-     * @param _yeildFactor The new yeild factor.
+     * @dev Private function to set the yield factor.
+     * @param _yieldFactor The new yield factor.
      */
-    function _setYieldFactor(uint256 _yeildFactor) private {
-        if (_yeildFactor < _PERCENTAGE_FACTOR) {
-            revert InvalidYeildFactor(_yeildFactor);
+    function _setYieldFactor(uint256 _yieldFactor) private {
+        if (_yieldFactor < _PERCENTAGE_FACTOR) {
+            revert InvalidYieldFactor(_yieldFactor);
         }
 
-        yeildFactor = _yeildFactor;
-        lastYeildFactorUpdate = block.timestamp;
+        yieldFactor = _yieldFactor;
+        lastYieldFactorUpdate = block.timestamp;
 
-        emit YeildFactorSet(yeildFactor);
+        emit YieldFactorSet(yieldFactor);
     }
 
     /**
@@ -608,9 +608,9 @@ contract SimpleYeildToken is
      * Might emit an {Approval} event.
      */
     function _beforeTokenTransfer() private {
-        if (address(optionalYeildCalculatorOracle) != address(0)) {
-            //If we're choosing to use the automatic yeild calculator, lets update the yeild factor on every transfer to keep it up to date.
-            optionalYeildCalculatorOracle.updateYeildFactor();
+        if (address(optionalYieldCalculatorOracle) != address(0)) {
+            //If we're choosing to use the automatic yield calculator, lets update the yield factor on every transfer to keep it up to date.
+            optionalYieldCalculatorOracle.updateYieldFactor();
         }
     }
 

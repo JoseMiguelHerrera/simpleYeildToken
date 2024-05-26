@@ -1,13 +1,13 @@
-# Simple Yeild Accumulating Token & Yeild Calculator Oracle
+# Simple Yield Accumulating Token & Yield Calculator Oracle
 
 ## Description
 
 This repo contains 2 contracts:
-- SimpleYeildToken: An erc20-based contract that allows for yeild via a simple rebasing mechanism.
- Contract keeps track of "capital" that has entered the system, but also outputs balances that are yeild-adjusted via the yeildFactor variable.
-- YeildCalculatorOracle: a contract that is an optional helper for the SimpleYeildToken. It helps calculate its yeildFactor according to an APR defined in basis points.
+- SimpleYieldToken: An erc20-based contract that allows for yield via a simple rebasing mechanism.
+ Contract keeps track of "capital" that has entered the system, but also outputs balances that are yield-adjusted via the yieldFactor variable.
+- YieldCalculatorOracle: a contract that is an optional helper for the SimpleYieldToken. It helps calculate its yieldFactor according to an APR defined in basis points.
 
-Deciding to use the YeildCalculatorOracle is a tradeoff between automatization and cost for users. The admin of these contracts may choose to update the yeild factor manually using an offchain server, making transactions cheaper for users. Or they may enable the use of the YeildCalculatorOracle, which offsets the cost to users, but makes the system automated and more decentralized.
+Deciding to use the YieldCalculatorOracle is a tradeoff between automatization and cost for users. The admin of these contracts may choose to update the yield factor manually using an offchain server, making transactions cheaper for users. Or they may enable the use of the YieldCalculatorOracle, which offsets the cost to users, but makes the system automated and more decentralized.
 
 ## Requirements
 
